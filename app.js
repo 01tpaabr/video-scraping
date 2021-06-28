@@ -23,12 +23,22 @@ async function downloadYoutubeVideo(url, mode, count){
     }
 }
 
-//Update JSON file
-function updateVideoCount(filepath, file, newVideos){
-    file.videoCount += newVideos;
-    fs.writeFile(filepath, JSON.stringify(file), function writeJSON (e){
-        if(e) return console.log(e);
-    });
+//Return amount of videos downloaded to update config file
+//NEEDS FFMPEG (https://ffmpeg.org/)
+async function downloadGenericVideo(url, count){
+    try{
+        await download({
+            quality: "best",
+            concurrency: 5,
+            outputFile: `./downloads/g-video_${count}.mp4`,
+            streamUrl: url
+        });
+    }catch(e){
+        console.log("Error while downloading generic video.")
+        console.log(e);
+    }
+
+    return count;
 }
 
 //Page obj, page url, and regex pattern to filter requests urls
@@ -57,22 +67,12 @@ async function getHLSRequests(page, url, pattern){
     return requests;
 }
 
-//Return amount of videos downloaded to update config file
-//NEEDS FFMPEG (https://ffmpeg.org/)
-async function downloadGenericVideo(url, count){
-    try{
-        await download({
-            quality: "best",
-            concurrency: 5,
-            outputFile: `./downloads/g-video_${count}.mp4`,
-            streamUrl: url
-        });
-    }catch(e){
-        console.log("Error while downloading generic video.")
-        console.log(e);
-    }
-
-    return count;
+//Update JSON file
+function updateVideoCount(filepath, file, newVideos){
+    file.videoCount += parseInt(newVideos);
+    fs.writeFile(filepath, JSON.stringify(file), function writeJSON (e){
+        if(e) return console.log(e);
+    });
 }
 
 
@@ -89,9 +89,23 @@ async function downloadGenericVideo(url, count){
 
     let url = await input("Url:");
 
-    hslLinks = [];
-
     //Intercepting HLS streams
-    hlsLinks.push(await getHLSRequests(page, url, /(m3u8)/));
+    let hlsLinks = await getHLSRequests(page, url, /(m3u8)/);
 
+    console.log("I've found out these links, choose one:");
+    for (let i = 0;  i < hlsLinks.length; i++) {
+        console.log(`${i+1}: ${hlsLinks[i]}`);
+    }
+
+    let chosenLink = parseInt(await input("Type the number of the link you want: "));
+    while(chosenLink < 1 || chosenLink > hlsLinks.length){
+        chosenLink = parseInt(await input("Choose an valid number: "));
+    }
+
+    console.log(config.videoCount);
+    let amountOfNewVideos = await downloadGenericVideo(hlsLinks[chosenLink - 1], config.videoCount);
+    console.log("New videos, " + amountOfNewVideos);
+
+    await updateVideoCount(configFilePath, config, amountOfNewVideos);
+    await browser.close();
 })();
