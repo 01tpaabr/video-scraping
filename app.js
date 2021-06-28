@@ -37,12 +37,11 @@ async function downloadYoutubeVideo(url, mode, count){
     }
 }
 
-
-
 if(config.profileMode && (config.userData === "" || config.userDataDir === "")){
     console.log("Please fill in user data");
 }
 
+//Main
 (async () => {
     const browser = await launchBrowser(config.profileMode);
     const [page] = await browser.pages();
@@ -54,10 +53,9 @@ if(config.profileMode && (config.userData === "" || config.userDataDir === "")){
     await downloadYoutubeVideo(url, "audio", config.videoCount);
     config.videoCount += 1;
 
-    //change update json file
+    //Update video Count in json file
     fs.writeFile(configFilePath, JSON.stringify(config), function writeJSON (e){
         if(e) return console.log(e);
-        console.log(JSON.stringify(config));
     });
     
 })();
