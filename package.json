@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "node-hls-downloader": "^2.1.0",
     "puppeteer": "^10.0.0",
     "puppeteer-core": "^10.0.0",
     "ytdl-core": "^4.8.3"
