@@ -2,23 +2,28 @@ const pptr = require('puppeteer-core');
 const ytdl = require('ytdl-core');
 const fs = require('fs');
 const { input } = require('./readline_util.js');
-const { request } = require('http');
+const download = require("node-hls-downloader").download;
 const configFilePath = "./config.json"
 const config = require(configFilePath);
 
+
+//Returns amount of videos downloaded to update config file
 async function downloadYoutubeVideo(url, mode, count){
     try{
         if(mode === "audio"){
             await ytdl(url, { filter: 'audioonly' }).pipe(fs.createWriteStream(`./downloads/audio_${count}.mp3`));
         }else{
-            await ytdl(url).pipe(fs.createWriteStream(`./downloads/video_${count}.mp4`));
+            await ytdl(url).pipe(fs.createWriteStream(`./downloads/yt-video_${count}.mp4`));
         }
+
+        return 1;
     }catch(e){
-        console.log("Error in video download.");
+        console.log("Error in youtube video download.");
         console.log(e);
     }
 }
 
+//Update JSON file
 function updateVideoCount(filepath, file, newVideos){
     file.videoCount += newVideos;
     fs.writeFile(filepath, JSON.stringify(file), function writeJSON (e){
@@ -26,7 +31,8 @@ function updateVideoCount(filepath, file, newVideos){
     });
 }
 
-//Page obj, url and regex pattern to filter requests urls
+//Page obj, page url, and regex pattern to filter requests urls
+//returns list of hlsURLs
 async function getHLSRequests(page, url, pattern){
     let requests = [];
 
@@ -43,11 +49,30 @@ async function getHLSRequests(page, url, pattern){
         }
     });
 
+    //Waits to stop network traffic
     await page.goto(url, { waitUntil: 'networkidle0' });
 
     await page.setRequestInterception(false);
 
     return requests;
+}
+
+//Return amount of videos downloaded to update config file
+//NEEDS FFMPEG (https://ffmpeg.org/)
+async function downloadGenericVideo(url, count){
+    try{
+        await download({
+            quality: "best",
+            concurrency: 5,
+            outputFile: `./downloads/g-video_${count}.mp4`,
+            streamUrl: url
+        });
+    }catch(e){
+        console.log("Error while downloading generic video.")
+        console.log(e);
+    }
+
+    return count;
 }
 
 
@@ -64,31 +89,9 @@ async function getHLSRequests(page, url, pattern){
 
     let url = await input("Url:");
 
-    //Intercepting hls streams
-    let requests = await getHLSRequests(page, url, /(m3u8)/);
-    console.log(requests);
+    hslLinks = [];
 
-    // await page.setRequestInterception(true);
+    //Intercepting HLS streams
+    hlsLinks.push(await getHLSRequests(page, url, /(m3u8)/));
 
-    // page.on('request', req => {
-    //     req.continue();
-    // });
-
-    // page.on('response', response => {
-    //     //intercepts m3u8 types
-    //     let pattern = /(m3u8)/
-    //     if(response.url().match(/(m3u8)/)){
-    //         requests.push(response.url());
-    //     }
-    // });
-
-    // await page.goto(url, { waitUntil: 'networkidle0' });
-
-    // console.log(requests);
-
-    //await page.goto(url);
-    //Download video
-    //await downloadYoutubeVideo(url, "audio", config.videoCount);
-    //updateVideoCount(configFilePath, config, 1);
-    //https://cursos.alura.com.br/course/certificacao-ccna-parte-1/task/26518
 })();
